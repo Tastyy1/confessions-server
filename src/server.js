@@ -44,7 +44,7 @@ app.use((_req, res, next) => {
 });
 
 mongoose.set("strictQuery", true);
-mongoose.connect(process.env.DB_URI, { dbName: "confessionsDB" }).then(
+mongoose.connect('mongodb+srv://vhalmedya:vhalmedya@vhal.c5wcmth.mongodb.net/?retryWrites=true&w=majority', { dbName: "confessionsDB" }).then(
   () => {
     console.log("Connected to MongoDB");
   },
