@@ -14,7 +14,7 @@ router.get("/", searchLimiter, async (req, res) => {
           query: q,
           path: ["name", "body"],
           fuzzy: {
-            maxEdits: 1,
+            maxEdits: 2,
           },
         },
       },
