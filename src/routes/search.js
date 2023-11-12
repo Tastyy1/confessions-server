@@ -37,7 +37,9 @@ router.get("/", searchLimiter, async (req, res) => {
         },
       },
     },
-
+    {
+      $limit: 30,
+    },
   ];
 
   if (sort === "top") {
