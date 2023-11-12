@@ -19,7 +19,24 @@ router.get("/", searchLimiter, async (req, res) => {
         },
       },
     },
-
+    {
+      $match: {
+        "meta.isDeleted": false,
+      },
+    },
+    {
+      $project: {
+        name: 1,
+        body: 1,
+        count: 1,
+        engagement: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        score: {
+          $meta: "searchScore",
+        },
+      },
+    },
     {
       $limit: 30,
     },
