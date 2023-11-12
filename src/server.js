@@ -20,7 +20,7 @@ dotenv.config({ debug: process.env.NODE_ENV !== "production" ? true : false });
 const app = express();
 
 Sentry.init({
-  dsn: process.env.SENTRY_DSN_URI,
+  dsn: "https://4beab6fee0fa4d2c0588a3209e25c725@o4506212388306944.ingest.sentry.io/4506212391452672",
   integrations: [
     new Sentry.Integrations.Http({ tracing: true }),
     new Tracing.Integrations.Express({ app }),
