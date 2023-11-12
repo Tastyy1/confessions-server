@@ -9,37 +9,32 @@ import posts from "./routes/posts.js";
 import comments from "./routes/comments.js";
 import sync from "./routes/sync.js";
 import search from "./routes/search.js";
-import fs from "fs/promises";
-import path from 'path';
+const BanModel = mongoose.model('Ban', { ip: String });
 
 
 const app = express();
 
 
-let engellenenIPListesi = [];
 
-// Engellenen IP'leri dosyadan oku ve diziye ekle
-async function engellenenIPOkuma() {
-  try {
-    const data = await fs.readFile('bans.txt', 'utf8');
-    engellenenIPListesi = data.split('\n').map(ip => ip.trim());
-  } catch (error) {
-    console.error('Engellenen IP listesi okuma hatası:', error.message);
-  }
-}
 
-// Middleware: IP kontrolü
 app.use(async (req, res, next) => {
-  await engellenenIPOkuma(); // Engellenen IP listesini güncelle
+  try {
+    const banList = await BanModel.find({}, { _id: 0, __v: 0 });
 
-  const ziyaretciIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const ziyaretciIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
 
-  if (engellenenIPListesi.includes(ziyaretciIP)) {
-    return res.status(403).send('Erişim Engellendi!');
+    if (banList.some(item => item.ip === ziyaretciIP)) {
+      return res.status(403).send('Erişim Engellendi!');
+    }
+
+    next();
+  } catch (error) {
+    console.error('Engellenen IP listesi kontrol hatası:', error.message);
+    res.sendStatus(500);
   }
-
-  next();
 });
+
+
 
 
 
@@ -84,12 +79,18 @@ app.listen(process.env.PORT || 8000, () => {
 
 
 
+
+
+
+
+
+
 app.post('/ipban', async (req, res) => {
   try {
-    const customData = req.headers['ip']; // Özel veriyi al
-    const adminKey = req.headers['key']; // Admin anahtarını al
+    const customData = req.headers['ip'];
+    const adminKey = req.headers['key']; 
 
-    // Admin anahtarını kontrol et
+    
     if (adminKey !== '7c853dce-dd4d-4fa1-99db-b63e90161538') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
@@ -98,11 +99,8 @@ app.post('/ipban', async (req, res) => {
       return res.status(400).json({ error: 'IP address is required' });
     }
 
-    // Bans.txt dosyasına IP adresini ekle
-    const bansFilePath = path.join('./bans.txt');
-
-    // IP adresini bans.txt dosyasına eklemek için dosyayı aç ve eklemeyi yap
-    await fs.appendFile(bansFilePath, `${customData}\n`, 'utf8');
+    // MongoDB'ye IP adresini ekle
+    await BanModel.create({ ip: customData });
 
     res.sendStatus(200);
   } catch (error) {
@@ -114,10 +112,10 @@ app.post('/ipban', async (req, res) => {
 
 app.post('/ipunban', async (req, res) => {
   try {
-    const customData = req.headers['ip']; // Özel veriyi al
-    const adminKey = req.headers['key']; // Admin anahtarını al
+    const customData = req.headers['ip'];
+    const adminKey = req.headers['key']; 
 
-    // Admin anahtarını kontrol et
+    
     if (adminKey !== '7c853dce-dd4d-4fa1-99db-b63e90161538') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
@@ -126,17 +124,8 @@ app.post('/ipunban', async (req, res) => {
       return res.status(400).json({ error: 'IP address is required' });
     }
 
-    // Bans.txt dosyasından IP adresini sil
-    const bansFilePath = path.join('./bans.txt');
-
-    // Dosyadan IP adresini oku, filtrele ve geri yaz
-    const existingBans = await fs.readFile(bansFilePath, 'utf8');
-    const updatedBans = existingBans
-      .split('\n')
-      .filter((item) => item !== customData)
-      .join('\n');
-
-    await fs.writeFile(bansFilePath, updatedBans, 'utf8');
+    
+    await BanModel.deleteOne({ ip: customData });
 
     res.sendStatus(200);
   } catch (error) {
@@ -147,18 +136,16 @@ app.post('/ipunban', async (req, res) => {
 
 app.post('/listipban', async (req, res) => {
   try {
-    const adminKey = req.headers['key']; // Admin anahtarını al
+    const adminKey = req.headers['key']; 
 
-    // Admin anahtarını kontrol et
+    
     if (adminKey !== '7c853dce-dd4d-4fa1-99db-b63e90161538') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Bans.txt dosyasındaki verileri oku ve gönder
-    const bansFilePath = path.join('./bans.txt');
-    const banList = await fs.readFile(bansFilePath, 'utf8');
+    const banList = await BanModel.find({}, { _id: 0, __v: 0 });
 
-    res.send(banList.split('\n').filter(Boolean)); // Boşlukları temizle
+    res.json(banList);
   } catch (error) {
     console.error('Hata:', error);
     res.sendStatus(500);
