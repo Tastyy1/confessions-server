@@ -14,7 +14,7 @@ router.get("/", searchLimiter, async (req, res) => {
           query: q,
           path: ["name", "body"],
           fuzzy: {
-            maxEdits: 2,
+            maxEdits: 1,
           },
         },
       },
@@ -37,9 +37,7 @@ router.get("/", searchLimiter, async (req, res) => {
         },
       },
     },
-    {
-      $limit: 30,
-    },
+
   ];
 
   if (sort === "top") {
