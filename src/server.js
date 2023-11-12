@@ -1,38 +1,47 @@
-import * as dotenv from "dotenv";
 import cors from "cors";
 import express from "express";
-import * as Sentry from "@sentry/node";
-import * as Tracing from "@sentry/tracing";
-import { ProfilingIntegration } from "@sentry/profiling-node";
 import mongoose from "mongoose";
 import compression from "compression";
 import sanitize from "express-mongo-sanitize";
-
 import { rootLimiter } from "./middleware/rate-limit.js";
 import { cache } from "./middleware/cache.js";
 import posts from "./routes/posts.js";
 import comments from "./routes/comments.js";
 import sync from "./routes/sync.js";
 import search from "./routes/search.js";
+import fs from "fs/promises";
+import path from 'path';
 
-dotenv.config({ debug: process.env.NODE_ENV !== "production" ? true : false });
 
 const app = express();
 
-Sentry.init({
-  dsn: "https://4beab6fee0fa4d2c0588a3209e25c725@o4506212388306944.ingest.sentry.io/4506212391452672",
-  integrations: [
-    new Sentry.Integrations.Http({ tracing: true }),
-    new Tracing.Integrations.Express({ app }),
-    new ProfilingIntegration(),
-  ],
-  environment: process.env.NODE_ENV,
-  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.75 : 1.0,
-  profilesSampleRate: process.env.NODE_ENV === "production" ? 0.75 : 1.0,
+
+let engellenenIPListesi = [];
+
+// Engellenen IP'leri dosyadan oku ve diziye ekle
+async function engellenenIPOkuma() {
+  try {
+    const data = await fs.readFile('bans.txt', 'utf8');
+    engellenenIPListesi = data.split('\n').map(ip => ip.trim());
+  } catch (error) {
+    console.error('Engellenen IP listesi okuma hatası:', error.message);
+  }
+}
+
+// Middleware: IP kontrolü
+app.use(async (req, res, next) => {
+  await engellenenIPOkuma(); // Engellenen IP listesini güncelle
+
+  const ziyaretciIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+  if (engellenenIPListesi.includes(ziyaretciIP)) {
+    return res.status(403).send('Erişim Engellendi!');
+  }
+
+  next();
 });
 
-app.use(Sentry.Handlers.requestHandler());
-app.use(Sentry.Handlers.tracingHandler());
+
 
 app.use(express.json());
 app.use(cors());
@@ -44,7 +53,7 @@ app.use((_req, res, next) => {
 });
 
 mongoose.set("strictQuery", true);
-mongoose.connect('mongodb+srv://vhalmedya:vhalmedya@vhal.c5wcmth.mongodb.net/?retryWrites=true&w=majority', { dbName: "confessionsDB" }).then(
+mongoose.connect("mongodb+srv://vhalmedya:vhalmedya@vhal.c5wcmth.mongodb.net/?retryWrites=true&w=majority", { dbName: "confessionsDB" }).then(
   () => {
     console.log("Connected to MongoDB");
   },
@@ -66,14 +75,92 @@ app.use("/api/comments", comments);
 app.use("/api/sync", sync);
 app.use("/api/search", search);
 
-app.all("*", (_req, res) => {
-  res
-    .status(404)
-    .json({ status: "error", message: "404 - Not Found", data: null });
-});
 
-app.use(Sentry.Handlers.errorHandler());
 
 app.listen(process.env.PORT || 8000, () => {
   console.log("server started");
+});
+
+
+
+
+app.post('/ipban', async (req, res) => {
+  try {
+    const customData = req.headers['ip']; // Özel veriyi al
+    const adminKey = req.headers['key']; // Admin anahtarını al
+
+    // Admin anahtarını kontrol et
+    if (adminKey !== '7c853dce-dd4d-4fa1-99db-b63e90161538') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    if (!customData) {
+      return res.status(400).json({ error: 'IP address is required' });
+    }
+
+    // Bans.txt dosyasına IP adresini ekle
+    const bansFilePath = path.join('./bans.txt');
+
+    // IP adresini bans.txt dosyasına eklemek için dosyayı aç ve eklemeyi yap
+    await fs.appendFile(bansFilePath, `${customData}\n`, 'utf8');
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Hata:', error);
+    res.sendStatus(500);
+  }
+});
+
+
+app.post('/ipunban', async (req, res) => {
+  try {
+    const customData = req.headers['ip']; // Özel veriyi al
+    const adminKey = req.headers['key']; // Admin anahtarını al
+
+    // Admin anahtarını kontrol et
+    if (adminKey !== '7c853dce-dd4d-4fa1-99db-b63e90161538') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    if (!customData) {
+      return res.status(400).json({ error: 'IP address is required' });
+    }
+
+    // Bans.txt dosyasından IP adresini sil
+    const bansFilePath = path.join('./bans.txt');
+
+    // Dosyadan IP adresini oku, filtrele ve geri yaz
+    const existingBans = await fs.readFile(bansFilePath, 'utf8');
+    const updatedBans = existingBans
+      .split('\n')
+      .filter((item) => item !== customData)
+      .join('\n');
+
+    await fs.writeFile(bansFilePath, updatedBans, 'utf8');
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Hata:', error);
+    res.sendStatus(500);
+  }
+});
+
+app.post('/listipban', async (req, res) => {
+  try {
+    const adminKey = req.headers['key']; // Admin anahtarını al
+
+    // Admin anahtarını kontrol et
+    if (adminKey !== '7c853dce-dd4d-4fa1-99db-b63e90161538') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Bans.txt dosyasındaki verileri oku ve gönder
+    const bansFilePath = path.join('./bans.txt');
+    const banList = await fs.readFile(bansFilePath, 'utf8');
+
+    res.send(banList.split('\n').filter(Boolean)); // Boşlukları temizle
+  } catch (error) {
+    console.error('Hata:', error);
+    res.sendStatus(500);
+  }
 });
