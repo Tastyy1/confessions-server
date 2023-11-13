@@ -151,22 +151,3 @@ app.post('/listipban', async (req, res) => {
     res.sendStatus(500);
   }
 });
-
-
-app.post('/getip', async (req, res) => {
-  const postId = req.headers['id'];  // Post ID'sini post verisi içinden alın
-  const Post = "/models/Post.js";
-  try {
-    const post = await Post.findById(postId);
-
-    if (!post) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-
-    const metaIp = post.meta.ip;
-    res.json({ metaIp });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
