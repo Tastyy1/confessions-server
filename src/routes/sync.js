@@ -9,103 +9,62 @@ router.post("/", syncLimiter, (req, res) => {
   const { ids } = req.body;
 
   if (ids && t === "post") {
-    if (v === "likes") {
-      Post.updateMany(
-        { _id: { $in: ids } },
-        { $inc: { "count.likes": 1 } },
-        (err) => {
-          if (err) {
-            res.status(500).json({
-              status: "error",
-              message: "Error while syncing likes, please try again later",
-              data: null,
-            });
-          } else {
-            res
-              .status(200)
-              .json({ status: "success", message: "Likes synced", data: null });
-          }
-        }
-      );
-    } else if (v === "unlikes") {
-      Post.updateMany(
-        { _id: { $in: ids } },
-        { $inc: { "count.likes": -1 } },
-        (err) => {
-          if (err) {
-            res.status(500).json({
-              status: "error",
-              message: "Error while syncing likes, please try again later",
-              data: null,
-            });
-          } else {
-            res
-              .status(200)
-              .json({ status: "success", message: "Likes synced", data: null });
-          }
-        }
-      );
-    } else if (v === "dislikes") {
-      Post.updateMany(
-        { _id: { $in: ids } },
-        { $inc: { "count.dislikes": 1 } },
-        (err) => {
-          if (err) {
-            res.status(500).json({
-              status: "error",
-              message: "Error while syncing dislikes, please try again later",
-              data: null,
-            });
-          } else {
-            res.status(200).json({
-              status: "success",
-              message: "Dislikes synced",
-              data: null,
-            });
-          }
-        }
-      );
-    } else if (v === "undislikes") {
-      Post.updateMany(
-        { _id: { $in: ids } },
-        { $inc: { "count.dislikes": -1 } },
-        (err) => {
-          if (err) {
-            res.status(500).json({
-              status: "error",
-              message: "Error while syncing dislikes, please try again later",
-              data: null,
-            });
-          } else {
-            res.status(200).json({
-              status: "success",
-              message: "Dislikes synced",
-              data: null,
-            });
-          }
-        }
-      );
-    } else if (v === "reports") {
-      Post.updateMany(
-        { _id: { $in: ids } },
-        { $inc: { "meta.reports": 1 } },
-        (err) => {
-          if (err) {
-            res.status(500).json({
-              status: "error",
-              message: "Error while syncing reports, please try again later",
-              data: null,
-            });
-          } else {
-            res.status(200).json({
-              status: "success",
-              message: "Reports synced",
-              data: null,
-            });
-          }
-        }
-      );
+    let updateField;
+    let updateValue;
+
+    switch (v) {
+      case "likes":
+        updateField = "count.likes";
+        updateValue = 1;
+        break;
+      case "unlikes":
+        updateField = "count.likes";
+        updateValue = -1;
+        break;
+      case "dislikes":
+        updateField = "count.dislikes";
+        updateValue = 1;
+        break;
+      case "undislikes":
+        updateField = "count.dislikes";
+        updateValue = -1;
+        break;
+      case "reports":
+        updateField = "meta.reports";
+        updateValue = 1;
+        break;
+      default:
+        res
+          .status(400)
+          .json({ status: "error", message: "Invalid request", data: null });
+        return;
     }
+
+    const bulkOperations = ids.map((id) => ({
+      updateOne: {
+        filter: { _id: id },
+        update: {
+          $inc: { [updateField]: updateValue },
+          $currentDate: { updatedAt: true },
+        },
+      },
+    }));
+
+    Post.bulkWrite(bulkOperations, { ordered: false }, (err) => {
+      if (err) {
+        res.status(500).json({
+          status: "error",
+          message: `Error while syncing ${v}, please try again later`,
+          data: null,
+        });
+      } else {
+        res.status(200).json({
+          status: "success",
+          message: `${v} synced`,
+          data: null,
+        });
+      }
+    });
   } else {
     res
       .status(400)
