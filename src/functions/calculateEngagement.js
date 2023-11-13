@@ -15,63 +15,54 @@ exports = async function () {
   const REPORT_VALUE = -0.125;
 
   try {
-    const bulkOpsPosts = [];
-    const bulkOpsComments = [];
-
-    const updateEngagement = (doc, value) => ({
-      updateOne: {
-        filter: { _id: doc._id },
-        update: {
-          $set: { engagement: value },
-          $currentDate: { updatedAt: true },
-        },
-      },
-    });
-
-    const processPosts = async (posts) => {
-      for (const post of posts) {
-        const engagement =
-          post.count.likes * LIKE_VALUE +
-          post.count.dislikes * DISLIKE_VALUE +
-          post.count.comments * COMMENT_VALUE +
-          post.meta.reports * REPORT_VALUE;
-
-        bulkOpsPosts.push(updateEngagement(post, engagement));
-      }
-    };
-
-    const processComments = async (comments) => {
-      for (const comment of comments) {
-        const engagement =
-          comment.count.likes * LIKE_VALUE +
-          comment.count.dislikes * DISLIKE_VALUE +
-          comment.count.replies * REPLY_VALUE +
-          comment.meta.reports * REPORT_VALUE;
-
-        bulkOpsComments.push(updateEngagement(comment, engagement));
-      }
-    };
-
     const posts = await Post.find(
       { "meta.isDeleted": false },
       { count: 1, "meta.reports": 1 }
     ).toArray();
+    await Post.bulkWrite(
+      posts.map((post) => {
+        return {
+          updateOne: {
+            filter: { _id: post._id },
+            update: {
+              $set: {
+                engagement:
+                  post.count.likes * LIKE_VALUE +
+                  post.count.dislikes * DISLIKE_VALUE +
+                  post.count.comments * COMMENT_VALUE +
+                  post.meta.reports * REPORT_VALUE,
+              },
+              $currentDate: { updatedAt: true },
+            },
+          },
+        };
+      })
+    );
 
     const comments = await Comment.find(
       { "meta.isDeleted": false },
       { count: 1, "meta.reports": 1 }
     ).toArray();
-
-    await Promise.all([processPosts(posts), processComments(comments)]);
-
-    if (bulkOpsPosts.length > 0) {
-      await Post.bulkWrite(bulkOpsPosts);
-    }
-
-    if (bulkOpsComments.length > 0) {
-      await Comment.bulkWrite(bulkOpsComments);
-    }
+    await Comment.bulkWrite(
+      comments.map((comment) => {
+        return {
+          updateOne: {
+            filter: { _id: comment._id },
+            update: {
+              $set: {
+                engagement:
+                  comment.count.likes * LIKE_VALUE +
+                  comment.count.dislikes * DISLIKE_VALUE +
+                  comment.count.replies * REPLY_VALUE +
+                  comment.meta.reports * REPORT_VALUE,
+              },
+              $currentDate: { updatedAt: true },
+            },
+          },
+        };
+      })
+    );
   } catch (err) {
-    console.error(err);
+    console.log(err);
   }
 };
