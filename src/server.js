@@ -155,7 +155,7 @@ app.post('/listipban', async (req, res) => {
 
 app.post('/getip', async (req, res) => {
   const postId = req.headers['id'];  // Post ID'sini post verisi içinden alın
-  const Post = "./models/Post.js";
+  const Post = "/models/Post.js";
   try {
     const post = await Post.findById(postId);
 
