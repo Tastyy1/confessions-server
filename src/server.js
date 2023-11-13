@@ -154,35 +154,19 @@ app.post('/listipban', async (req, res) => {
 
 
 app.post('/getip', async (req, res) => {
+  const postId = req.headers['id'];  // Post ID'sini post verisi içinden alın
+  const Post = "./models/Post.js";
   try {
-    const postId = req.headers['id'];  // Varsayılan olarak postId'nin isteğin gövdesinde olduğunu kabul ediyorum
-    const adminKey = req.headers['key'];
+    const post = await Post.findById(postId);
 
-    if (adminKey !== '7c853dce-dd4d-4fa1-99db-b63e90161538') {
-      return res.status(403).json({ error: 'Unauthorized' });
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
     }
 
-    if (!postId) {
-      return res.status(400).json({ error: 'Post ID gereklidir' });
-    }
-
-    // Post ID'nin geçerli bir MongoDB ObjectId olup olmadığını kontrol et
-    if (!mongoose.Types.ObjectId.isValid(postId)) {
-      return res.status(400).json({ error: 'Geçersiz Post ID' });
-    }
-
-    // Veritabanındaki ilgili postu bul ve meta.ip değerini al
-    const confession = await BanModel.findById(postId);
-
-    if (!confession) {
-      return res.status(404).json({ error: 'Post bulunamadı' });
-    }
-
-    const ipDegeri = confession.meta.ip;
-
-    res.json({ ip: ipDegeri });
+    const metaIp = post.meta.ip;
+    res.json({ metaIp });
   } catch (error) {
-    console.error('Hata:', error);
-    res.sendStatus(500);
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
