@@ -25,8 +25,8 @@ app.use(async (req, res, next) => {
     const ziyaretciIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
 
     if (banList.some(item => item.ip === ziyaretciIP)) {
-      return res.status(200).json({
-        status: "success",
+      return res.status(500).json({
+        status: "error",
         message: `HMM KNK SANIRIM BANLANDIN YA. AH BE`,
         data: null,
       });
