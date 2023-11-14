@@ -110,7 +110,7 @@ router.get("/", getPostsLimiter, cache(10, 86400), (req, res) => {
 
 
 router.get("/", getPostsLimiter, cache(10, 86400), (req, res) => {
-  const { sort = "engagement" } = req.query;
+  const { sort = "count.likes" } = req.query;
 
   Post.find({ "meta.isDeleted": false }, { meta: 0, tag: 0 })
     .sort({ [sort]: -1 })
