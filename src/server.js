@@ -13,6 +13,7 @@ const BanModel = mongoose.model('Ban', { ip: String });
 
 
 const app = express();
+app.use(cors());
 
 
 
@@ -43,7 +44,6 @@ app.use(async (req, res, next) => {
 
 
 app.use(express.json());
-app.use(cors());
 app.use(compression());
 app.use(sanitize({ allowDots: true }));
 app.use((_req, res, next) => {
