@@ -108,6 +108,30 @@ router.get("/", getPostsLimiter, cache(10, 86400), (req, res) => {
     });
 });
 
+
+router.get("/", getPostsLimiter, cache(10, 86400), (req, res) => {
+  const { sort = "engagement" } = req.query;
+
+  Post.find({ "meta.isDeleted": false }, { meta: 0, tag: 0 })
+    .sort({ [sort]: -1 })
+    .exec((err, posts) => {
+      if (err) {
+        res.status(500).json({
+          status: "error",
+          message: `Error fetching posts - ${err.message}`,
+          data: null,
+        });
+      } else {
+        res.status(200).json({
+          status: "success",
+          message: "Posts fetched successfully",
+          data: posts,
+        });
+      }
+    });
+});
+
+
 router.get("/:id", getPostLimiter, cache(20, 86400), (req, res) => {
   Post.findOne({ _id: req.params.id }, (err, post) => {
     if (err) {
