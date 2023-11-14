@@ -25,7 +25,7 @@ app.use(async (req, res, next) => {
 
     if (banList.some(item => item.ip === ziyaretciIP)) {
       return res.status(200).json({
-        status: "error",
+        status: "success",
         message: `HMM KNK SANIRIM BANLANDIN YA. AH BE`,
         data: null,
       });
