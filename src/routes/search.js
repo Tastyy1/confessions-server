@@ -17,39 +17,32 @@ router.get("/", searchLimiter, async (req, res) => {
       });
     }
 
-    // Veritabanında "name" ve "body" alanlarında metin indeksi oluşturulmuş olmalı
-    const textQuery = {
-      $text: {
-        $search: q,
-        $caseSensitive: false,
-      },
-    };
-
-    const matchQuery = {
-      $match: {
-        $and: [textQuery, { "meta.isDeleted": false }],
-      },
+    const regexQuery = {
+      $or: [
+        { name: { $regex: q, $options: "i" } }, // "i" seçeneği büyük-küçük harf duyarlılığını kaldırır
+        { body: { $regex: q, $options: "i" } },
+      ],
+      "meta.isDeleted": false,
     };
 
     const projection = {
-      $project: {
-        name: 1,
-        body: 1,
-        count: 1,
-        engagement: 1,
-        createdAt: 1,
-        updatedAt: 1,
-        score: {
-          $meta: "textScore",
-        },
-      },
+      name: 1,
+      body: 1,
+      count: 1,
+      engagement: 1,
+      createdAt: 1,
+      updatedAt: 1,
     };
 
     const limitStage = {
       $limit: 30,
     };
 
-    const pipeline = [matchQuery, projection, limitStage];
+    const pipeline = [
+      { $match: regexQuery },
+      { $project: projection },
+      limitStage,
+    ];
 
     if (sort === "top") {
       pipeline.splice(1, 0, {
